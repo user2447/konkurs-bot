@@ -1,8 +1,12 @@
 import telebot
+import os
 from telebot import types
 
-TOKEN = os.environ.get("BOT_TOKEN")  # hostingdan oladi
+TOKEN = os.getenv("BOT_TOKEN")  # .env dan yoki Railway Variables dan oladi
 bot = telebot.TeleBot(TOKEN)
+
+# qolgan kodingiz shu yerda...
+
 
 users = {}  # foydalanuvchi ma'lumotlari
 referrals = {}  # referral tracking

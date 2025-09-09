@@ -119,13 +119,13 @@ def start_handler(message):
     )
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
-    bot.send_message(
-        chat_id,
-        "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling va “Obuna bo‘ldim ✅” tugmasini bosing.\n\n"
-        "⚠️ Instagram va YouTube ixtiyoriy.",
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
+bot.send_message(
+    chat_id,
+    "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling.,
+    reply_markup=markup,
+    parse_mode="Markdown"
+)
+
 
 # CALLBACK handler
 @bot.callback_query_handler(func=lambda call: True)

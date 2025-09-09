@@ -1,17 +1,55 @@
 import telebot
 import os
+import sqlite3
 from telebot import types
 
 TOKEN = os.getenv("BOT_TOKEN")  # .env dan yoki Railway Variables dan oladi
 bot = telebot.TeleBot(TOKEN)
 
-# qolgan kodingiz shu yerda...
+# 📂 SQLite baza
+conn = sqlite3.connect("users.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    phone TEXT,
+    ball INTEGER DEFAULT 0,
+    registered INTEGER DEFAULT 0
+)
+""")
+conn.commit()
+
+# Foydalanuvchi qo‘shish
+def add_user(user_id, phone):
+    cursor.execute("INSERT OR REPLACE INTO users (user_id, phone, ball, registered) VALUES (?, ?, ?, ?)",
+                   (user_id, phone, 0, 1))
+    conn.commit()
+
+# Ball qo‘shish
+def add_ball(user_id, amount):
+    cursor.execute("UPDATE users SET ball = ball + ? WHERE user_id = ?", (amount, user_id))
+    conn.commit()
+
+# Ball olish
+def get_ball(user_id):
+    cursor.execute("SELECT ball FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    return result[0] if result else 0
+
+# Reyting olish
+def get_top_users(limit=10):
+    cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT ?", (limit,))
+    return cursor.fetchall()
+
+# Foydalanuvchi tekshirish
+def is_registered(user_id):
+    cursor.execute("SELECT registered FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    return result and result[0] == 1
 
 
-users = {}  # foydalanuvchi ma'lumotlari
-referrals = {}  # referral tracking
-
-# Sovg'alar rasmi uchun file_id (botdan rasm yuborib olgan file_id yoziladi)
+# Sovg'alar rasmi uchun file_id
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
 # Majburiy kanallar
@@ -33,13 +71,6 @@ def check_subscription(user_id):
     return not_subscribed
 
 
-# Rasm yuborganda file_id olish
-@bot.message_handler(content_types=['photo'])
-def get_file_id(message):
-    file_id = message.photo[-1].file_id
-    bot.send_message(message.chat.id, f"📷 Siz yuborgan rasmning file_id si:\n{file_id}")
-
-
 # Start komandasi
 @bot.message_handler(commands=['start'])
 def start_handler(message):
@@ -50,14 +81,14 @@ def start_handler(message):
     if len(args) > 1:
         try:
             ref_id = int(args[1])
-            if ref_id in users and chat_id not in users:
-                users[ref_id]["ball"] += 10
-                bot.send_message(ref_id, f"🎉 Sizga +10 ball qo'shildi! Jami: {users[ref_id]['ball']}")
+            if ref_id != chat_id:  # o‘zi-o‘zini refer qila olmaydi
+                add_ball(ref_id, 10)
+                bot.send_message(ref_id, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(ref_id)}")
         except:
             pass
 
-    # Agar foydalanuvchi ro'yxatdan o'tgan bo'lsa, menyuga qaytariladi
-    if chat_id in users and users[chat_id].get("registered", False):
+    # Agar foydalanuvchi ro‘yxatdan o‘tgan bo‘lsa → menyu
+    if is_registered(chat_id):
         main_menu(chat_id)
         return
 
@@ -106,11 +137,8 @@ def contact_handler(message):
     chat_id = message.chat.id
     phone = message.contact.phone_number
 
-    users[chat_id] = {
-        "phone": phone,
-        "ball": 0,
-        "registered": True
-    }
+    add_user(chat_id, phone)
+
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz va boshlangʼich 0 ballga ega bo'ldingiz!")
     main_menu(chat_id)
 
@@ -167,14 +195,14 @@ def text_handler(message):
         bot.send_photo(chat_id, photo_file_id, caption=caption_text)
 
     elif text == "👤 Ballarim":
-        score = users.get(chat_id, {}).get("ball", 0)
+        score = get_ball(chat_id)
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {score}")
 
     elif text == "📊 Reyting":
-        top_users = sorted(users.items(), key=lambda x: x[1].get("ball",0), reverse=True)[:10]
+        top_users = get_top_users()
         text_msg = "📊 Top 10 Reyting:\n"
-        for i, (uid, data) in enumerate(top_users, start=1):
-            text_msg += f"{i}. {uid} - {data.get('ball',0)} ball\n"
+        for i, (uid, ball) in enumerate(top_users, start=1):
+            text_msg += f"{i}. {uid} - {ball} ball\n"
         bot.send_message(chat_id, text_msg)
 
     elif text == "💡 Shartlar":

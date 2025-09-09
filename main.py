@@ -3,6 +3,7 @@ import os
 from telebot import types
 from dotenv import load_dotenv
 import psycopg2
+import time
 
 # .env dan o'qish
 load_dotenv()
@@ -11,16 +12,26 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 bot = telebot.TeleBot(TOKEN)
 
-# PostgreSQL bilan ulanish
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    cursor = conn.cursor()
-    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
-except Exception as e:
-    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+# PostgreSQL bilan ulanish funksiyasi (retry qo‘shildi)
+def connect_db():
+    retries = 5
+    while retries:
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
+            return conn, cursor
+        except Exception as e:
+            print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+            retries -= 1
+            print(f"⏳ 5 soniya kutib qayta urinib ko‘rilyapti... ({retries} urinish qoldi)")
+            time.sleep(5)
+    print("❌ DB ga ulanish mumkin emas, bot to‘xtadi.")
     exit(1)
 
-# Jadval yaratish (agar mavjud bo‘lmasa)
+conn, cursor = connect_db()
+
+# Jadval yaratish
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id BIGINT PRIMARY KEY,
@@ -42,44 +53,36 @@ def add_user(user_id, phone, referrer=None):
     """, (user_id, phone, user_id, referrer))
     conn.commit()
 
-# Ball qo'shish
 def add_ball(user_id, amount):
     cursor.execute("UPDATE users SET ball = ball + %s WHERE user_id = %s", (amount, user_id))
     conn.commit()
 
-# Ball olish
 def get_ball(user_id):
     cursor.execute("SELECT ball FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result[0] if result else 0
 
-# Top foydalanuvchilar
 def get_top_users(limit=10):
     cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT %s", (limit,))
     return cursor.fetchall()
 
-# Ro‘yxatdan o'tganligini tekshirish
 def is_registered(user_id):
     cursor.execute("SELECT registered FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result and result[0] == 1
 
-# Referrer olish
 def get_referrer(user_id):
     cursor.execute("SELECT referrer FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result[0] if result else None
 
-# Sovg'alar rasmi
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
-# Majburiy kanallar
 CHANNELS = [
     {"id": "@ixtiyor_uc", "name": "Kanal 1"},
     {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
 ]
 
-# Obuna tekshirish
 def check_subscription(user_id):
     not_subscribed = []
     for ch in CHANNELS:
@@ -91,7 +94,6 @@ def check_subscription(user_id):
             not_subscribed.append(ch["name"])
     return not_subscribed
 
-# START handler
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
@@ -110,11 +112,9 @@ def start_handler(message):
         main_menu(chat_id)
         return
 
-    # Foydalanuvchi vaqtincha DB ga saqlanadi
     cursor.execute("INSERT INTO users (user_id, referrer) VALUES (%s, %s) ON CONFLICT DO NOTHING", (chat_id, ref_id))
     conn.commit()
 
-    # Inline tugmalar
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
@@ -133,7 +133,6 @@ def start_handler(message):
         parse_mode="Markdown"
     )
 
-# CALLBACK handler
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
@@ -152,7 +151,6 @@ def callback_query(call):
         markup.add(contact_button)
         bot.send_message(chat_id, "📲 Raqamni yuborish tugmasini bosgan holda raqamingizni yuboring!", reply_markup=markup)
 
-# Kontakt qabul qilish
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
     chat_id = message.chat.id
@@ -168,7 +166,6 @@ def contact_handler(message):
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz va boshlangʼich 0 ballga ega bo'ldingiz!")
     main_menu(chat_id)
 
-# Asosiy menyu
 def main_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(
@@ -185,7 +182,6 @@ def main_menu(chat_id):
     )
     bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
 
-# Tugmalar handleri
 @bot.message_handler(func=lambda message: True)
 def text_handler(message):
     chat_id = message.chat.id
@@ -248,4 +244,3 @@ def text_handler(message):
         bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
 
 bot.infinity_polling()
-

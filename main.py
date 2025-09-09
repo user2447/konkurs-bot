@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 print("✅ Jadval tayyor")
 
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
+except Exception as e:
+    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+    exit(1)
+
 # Foydalanuvchi qo'shish yoki yangilash
 def add_user(user_id, phone, referrer=None):
     cursor.execute("""

@@ -41,13 +41,25 @@ except Exception as e:
     print(f"❌ PostgreSQL ga ulanishda xato: {e}")
     exit(1)
 
-# Foydalanuvchi qo'shish yoki yangilash
+# keyin yana:
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
+except Exception as e:
+    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+    exit(1)
+
+
 def add_user(user_id, phone, referrer=None):
-    cursor.execute("""
-    INSERT INTO users (user_id, phone, ball, registered, referrer)
-    VALUES (%s, %s, COALESCE((SELECT ball FROM users WHERE user_id = %s), 0), 1, %s)
-    ON CONFLICT (user_id) DO UPDATE SET phone = EXCLUDED.phone
-    """, (user_id, phone, user_id, referrer))
+    cursor.execute(
+        """
+        INSERT INTO users (user_id, phone, referrer) 
+        VALUES (%s, %s, %s) 
+        ON CONFLICT (user_id) DO NOTHING
+        """,
+        (user_id, phone, referrer)
+    )
     conn.commit()
 
 # Ball qo'shish

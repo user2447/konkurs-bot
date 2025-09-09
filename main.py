@@ -2,11 +2,15 @@ import telebot
 import os
 import sqlite3
 from telebot import types
+from dotenv import load_dotenv
 
-TOKEN = os.getenv("BOT_TOKEN")  # .env dan yoki Railway Variables dan oladi
+load_dotenv()  # .env dan o'qiydi
+
+TOKEN = os.getenv("BOT_TOKEN")  # Railway Environment Variable dan oladi
 bot = telebot.TeleBot(TOKEN)
 
-# 📂 SQLite baza
+# Railway ephemeral filesystem: har safar deploy bo‘lganda users.db yo‘q bo‘lishi mumkin
+# Agar saqlash kerak bo‘lsa, PostgreSQL yoki boshqa DB ishlatish tavsiya qilinadi
 conn = sqlite3.connect("users.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -15,15 +19,18 @@ CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     phone TEXT,
     ball INTEGER DEFAULT 0,
-    registered INTEGER DEFAULT 0
+    registered INTEGER DEFAULT 0,
+    referrer INTEGER
 )
 """)
 conn.commit()
 
 # Foydalanuvchi qo‘shish
-def add_user(user_id, phone):
-    cursor.execute("INSERT OR REPLACE INTO users (user_id, phone, ball, registered) VALUES (?, ?, ?, ?)",
-                   (user_id, phone, 0, 1))
+def add_user(user_id, phone, referrer=None):
+    cursor.execute("""
+    INSERT OR REPLACE INTO users (user_id, phone, ball, registered, referrer)
+    VALUES (?, ?, COALESCE((SELECT ball FROM users WHERE user_id = ?), 0), 1, ?)
+    """, (user_id, phone, user_id, referrer))
     conn.commit()
 
 # Ball qo‘shish
@@ -48,6 +55,11 @@ def is_registered(user_id):
     result = cursor.fetchone()
     return result and result[0] == 1
 
+# Referrer olish
+def get_referrer(user_id):
+    cursor.execute("SELECT referrer FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    return result[0] if result else None
 
 # Sovg'alar rasmi uchun file_id
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
@@ -70,29 +82,32 @@ def check_subscription(user_id):
             not_subscribed.append(ch["name"])
     return not_subscribed
 
-
-# Start komandasi
+# START komandasi
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
     args = message.text.split()
 
     # Referral logika
+    ref_id = None
     if len(args) > 1:
         try:
             ref_id = int(args[1])
-            if ref_id != chat_id:  # o‘zi-o‘zini refer qila olmaydi
-                add_ball(ref_id, 10)
-                bot.send_message(ref_id, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(ref_id)}")
+            if ref_id == chat_id:
+                ref_id = None  # o‘zi-o‘zini refer qila olmaydi
         except:
-            pass
+            ref_id = None
 
     # Agar foydalanuvchi ro‘yxatdan o‘tgan bo‘lsa → menyu
     if is_registered(chat_id):
         main_menu(chat_id)
         return
 
-    # Tugmalar
+    # Referrer ID ni vaqtincha DB ga saqlab qo‘yamiz
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, referrer) VALUES (?, ?)", (chat_id, ref_id))
+    conn.commit()
+
+    # Inline tugmalar
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
@@ -104,14 +119,15 @@ def start_handler(message):
     )
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
-    bot.send_message(chat_id,
-        "🚀 Konkursda ishtirok etish uchun quyidagi **1, 2- kanallarga** obuna bo‘ling va “Obuna bo‘ldim ✅” tugmasini bosing.\n\n"
+    bot.send_message(
+        chat_id,
+        "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling va “Obuna bo‘ldim ✅” tugmasini bosing.\n\n"
         "⚠️ Instagram va YouTube ixtiyoriy.",
-        reply_markup=markup
+        reply_markup=markup,
+        parse_mode="Markdown"
     )
 
-
-# Callback handler
+# CALLBACK handler
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
@@ -130,18 +146,23 @@ def callback_query(call):
         markup.add(contact_button)
         bot.send_message(chat_id, "📲 Raqamni yuborish tugmasini bosgan holda raqamingizni yuboring!", reply_markup=markup)
 
-
 # Kontakt qabul qilish
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
     chat_id = message.chat.id
     phone = message.contact.phone_number
 
-    add_user(chat_id, phone)
+    # Foydalanuvchini ro‘yxatdan o‘tkazamiz
+    referrer = get_referrer(chat_id)
+    add_user(chat_id, phone, referrer)
+
+    # Agar referer mavjud bo‘lsa, ball qo‘shamiz
+    if referrer:
+        add_ball(referrer, 10)
+        bot.send_message(referrer, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(referrer)}")
 
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz va boshlangʼich 0 ballga ega bo'ldingiz!")
     main_menu(chat_id)
-
 
 # Asosiy menyu
 def main_menu(chat_id):
@@ -156,7 +177,6 @@ def main_menu(chat_id):
     markup.add(sovgalar, ballarim)
     markup.add(reyting, shartlar)
     bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
-
 
 # Tugmalar handleri
 @bot.message_handler(func=lambda message: True)
@@ -221,6 +241,5 @@ def text_handler(message):
     elif text == "🟢 Refeal link":
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
         bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
-
 
 bot.infinity_polling()

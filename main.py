@@ -12,10 +12,15 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 bot = telebot.TeleBot(TOKEN)
 
 # PostgreSQL bilan ulanish
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
+except Exception as e:
+    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+    exit(1)  # agar ulanmasa, bot ishga tushmasin
 
-# Jadval yaratish (agar yo'q bo'lsa)
+# Jadval yaratish (agar mavjud bo‘lmasa)
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id BIGINT PRIMARY KEY,
@@ -26,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 """)
 conn.commit()
+print("✅ Jadval tayyor")
 
 # Foydalanuvchi qo'shish yoki yangilash
 def add_user(user_id, phone, referrer=None):

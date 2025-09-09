@@ -18,7 +18,7 @@ try:
     print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
 except Exception as e:
     print(f"❌ PostgreSQL ga ulanishda xato: {e}")
-    exit(1)  # agar ulanmasa, bot ishga tushmasin
+    exit(1)
 
 # Jadval yaratish (agar mavjud bo‘lmasa)
 cursor.execute("""
@@ -33,33 +33,13 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 print("✅ Jadval tayyor")
 
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    cursor = conn.cursor()
-    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
-except Exception as e:
-    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
-    exit(1)
-
-# keyin yana:
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    cursor = conn.cursor()
-    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
-except Exception as e:
-    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
-    exit(1)
-
-
+# Foydalanuvchi qo'shish yoki yangilash
 def add_user(user_id, phone, referrer=None):
-    cursor.execute(
-        """
-        INSERT INTO users (user_id, phone, referrer) 
-        VALUES (%s, %s, %s) 
-        ON CONFLICT (user_id) DO NOTHING
-        """,
-        (user_id, phone, referrer)
-    )
+    cursor.execute("""
+        INSERT INTO users (user_id, phone, ball, registered, referrer)
+        VALUES (%s, %s, COALESCE((SELECT ball FROM users WHERE user_id = %s), 0), 1, %s)
+        ON CONFLICT (user_id) DO UPDATE SET phone = EXCLUDED.phone
+    """, (user_id, phone, user_id, referrer))
     conn.commit()
 
 # Ball qo'shish
@@ -268,3 +248,4 @@ def text_handler(message):
         bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
 
 bot.infinity_polling()
+

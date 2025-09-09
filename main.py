@@ -121,7 +121,7 @@ def start_handler(message):
 
 bot.send_message(
     chat_id,
-    "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling.,
+    "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling ✅",
     reply_markup=markup,
     parse_mode="Markdown"
 )

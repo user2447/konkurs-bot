@@ -1,66 +1,79 @@
 import telebot
 import os
-import sqlite3
 from telebot import types
 from dotenv import load_dotenv
+import psycopg2
 
-load_dotenv()  # .env dan o'qiydi
-
+# .env dan o'qish
+load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 bot = telebot.TeleBot(TOKEN)
 
-# SQLite baza
-conn = sqlite3.connect("users.db", check_same_thread=False)
+# PostgreSQL bilan ulanish
+conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
+# Jadval yaratish (agar yo'q bo'lsa)
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
+    user_id BIGINT PRIMARY KEY,
     phone TEXT,
     ball INTEGER DEFAULT 0,
     registered INTEGER DEFAULT 0,
-    referrer INTEGER
+    referrer BIGINT
 )
 """)
 conn.commit()
 
+# Foydalanuvchi qo'shish yoki yangilash
 def add_user(user_id, phone, referrer=None):
     cursor.execute("""
-    INSERT OR REPLACE INTO users (user_id, phone, ball, registered, referrer)
-    VALUES (?, ?, COALESCE((SELECT ball FROM users WHERE user_id = ?), 0), 1, ?)
+    INSERT INTO users (user_id, phone, ball, registered, referrer)
+    VALUES (%s, %s, COALESCE((SELECT ball FROM users WHERE user_id = %s), 0), 1, %s)
+    ON CONFLICT (user_id) DO UPDATE SET phone = EXCLUDED.phone
     """, (user_id, phone, user_id, referrer))
     conn.commit()
 
+# Ball qo'shish
 def add_ball(user_id, amount):
-    cursor.execute("UPDATE users SET ball = ball + ? WHERE user_id = ?", (amount, user_id))
+    cursor.execute("UPDATE users SET ball = ball + %s WHERE user_id = %s", (amount, user_id))
     conn.commit()
 
+# Ball olish
 def get_ball(user_id):
-    cursor.execute("SELECT ball FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT ball FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result[0] if result else 0
 
+# Top foydalanuvchilar
 def get_top_users(limit=10):
-    cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT ?", (limit,))
+    cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT %s", (limit,))
     return cursor.fetchall()
 
+# Ro‘yxatdan o'tganligini tekshirish
 def is_registered(user_id):
-    cursor.execute("SELECT registered FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT registered FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result and result[0] == 1
 
+# Referrer olish
 def get_referrer(user_id):
-    cursor.execute("SELECT referrer FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT referrer FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result[0] if result else None
 
+# Sovg'alar rasmi
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
+# Majburiy kanallar
 CHANNELS = [
     {"id": "@ixtiyor_uc", "name": "Kanal 1"},
     {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
 ]
 
+# Obuna tekshirish
 def check_subscription(user_id):
     not_subscribed = []
     for ch in CHANNELS:
@@ -77,7 +90,7 @@ def check_subscription(user_id):
 def start_handler(message):
     chat_id = message.chat.id
     args = message.text.split()
-    
+
     ref_id = None
     if len(args) > 1:
         try:
@@ -91,7 +104,8 @@ def start_handler(message):
         main_menu(chat_id)
         return
 
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, referrer) VALUES (?, ?)", (chat_id, ref_id))
+    # Foydalanuvchi vaqtincha DB ga saqlanadi
+    cursor.execute("INSERT INTO users (user_id, referrer) VALUES (%s, %s) ON CONFLICT DO NOTHING", (chat_id, ref_id))
     conn.commit()
 
     # Inline tugmalar

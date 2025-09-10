@@ -12,9 +12,9 @@ photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZ
 
 # ================= Majburiy kanallar =================
 CHANNELS = [
-    {"id": "@ixtiyor_uc", "name": "Majburiy Kanal 1"},
-    {"id": "@ixtiyor_gaming", "name": "Majburiy Kanal 2"},
-    {"id": "https://t.me/+J60RmZvVVPUyNmJi", "name": "Ixtiyoriy Kanal 3"},  # Tekshirilmaydi
+    {"id": "@ixtiyor_uc", "name": "Kanal 1"},
+    {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
+    {"id": "https://t.me/+J60RmZvVVPUyNmJi", "name": "Kanal 3"},  # Tekshirilmaydi
 ]
 
 # ================= Adminlar =================
@@ -29,16 +29,11 @@ users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
 def start_handler(message):
     chat_id = message.chat.id
     markup = types.InlineKeyboardMarkup(row_width=1)
-
-    # Majburiy kanallar
     markup.add(
         types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
         types.InlineKeyboardButton("Kanal 2", url="https://t.me/ixtiyor_gaming"),
+        types.InlineKeyboardButton("Kanal 3", url="https://t.me/+J60RmZvVVPUyNmJi"),
     )
-    # Ixtiyoriy kanal
-    markup.add(types.InlineKeyboardButton("Kanal 3", url="https://t.me/+J60RmZvVVPUyNmJi"))
-
-    # Instagram va YouTube
     markup.add(
         types.InlineKeyboardButton("Instagram", url="https://www.instagram.com/ixtiyor_gaming"),
         types.InlineKeyboardButton("YouTube", url="https://youtube.com/@ixtiyorgaming?si=azcra7Wz-TQmUUrM"),
@@ -46,10 +41,11 @@ def start_handler(message):
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
     bot.send_message(
-    chat_id,
-    "🚀 Konkursda ishtirok etish uchun quyidagi majburiy kanallarga obuna bo‘ling va 'Obuna bo'ldim ✅' tugmasini bosing.\n\n",
-    reply_markup=markup
+        chat_id,
+        "⛔️ Quyidagi kanallarga obuna bo‘ling:\nKanal 1\nKanal 2\nKanal 3",
+        reply_markup=markup
     )
+
 
 # ================= CALLBACK handler =================
 # ================= CALLBACK handler =================

@@ -4,13 +4,12 @@ from dotenv import load_dotenv
 import telebot
 from telebot import types
 
-# ================= Load environment =================
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
-# ================= Users file =================
-USERS_FILE = "users.json"  # Railway persistent storage
+# ================= Fayl va saqlash =================
+USERS_FILE = "/mnt/data/users.json"  # Railway persistent storage
 
 if os.path.exists(USERS_FILE):
     with open(USERS_FILE, "r", encoding="utf-8") as f:
@@ -22,22 +21,24 @@ def save_users():
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=4)
 
-# ================= Channels & Admins =================
+# ================= Sovg'alar rasmi =================
+photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
+
+# ================= Majburiy va qo‘shimcha kanallar =================
 MAJBURIY_CHANNELS = [
     {"id": "@ixtiyor_uc", "name": "Kanal 1"},
-    {"id": "@ixtiyor_gaming", "name": "Kanal 2"}
+    {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
 ]
 
 OPTIONAL_CHANNELS = [
     {"name": "Kanal 3", "url": "https://t.me/+J60RmZvVVPUyNmJi"},
     {"name": "Instagram", "url": "https://www.instagram.com/ixtiyor_gaming"},
-    {"name": "YouTube", "url": "https://youtube.com/@ixtiyorgaming?si=azcra7Wz-TQmUUrM"}
+    {"name": "YouTube", "url": "https://youtube.com/@ixtiyorgaming?si=azcra7Wz-TQmUUrM"},
 ]
 
+# ================= Adminlar =================
 ADMINS = [7717343429, 1900651840]
 PAY_ADMIN = 7717343429
-
-photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
 # ================= START =================
 @bot.message_handler(commands=['start'])
@@ -63,11 +64,14 @@ def start_handler(message):
         markup.add(types.InlineKeyboardButton(ch["name"], url=f"https://t.me/{ch['id'].replace('@','')}"))
     for ch in OPTIONAL_CHANNELS:
         markup.add(types.InlineKeyboardButton(ch["name"], url=ch["url"]))
+
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
-    bot.send_message(chat_id,
-                     "🚀 Konkursda ishtirok etish uchun majburiy kanallarga obuna bo‘ling va 'Obuna bo'ldim ✅' tugmasini bosing",
-                     reply_markup=markup)
+    bot.send_message(
+        chat_id,
+        "🚀 Konkursda ishtirok etish uchun quyidagi majburiy kanallarga obuna bo‘ling va 'Obuna bo'ldim ✅' tugmasini bosing",
+        reply_markup=markup
+    )
 
 # ================= CALLBACK =================
 @bot.callback_query_handler(func=lambda call: True)
@@ -98,12 +102,12 @@ def callback_query(call):
             main_menu(chat_id)
             bot.send_message(chat_id, "✅ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
         bot.answer_callback_query(call.id)
-
-# ================= Contact =================
+        # ================= Kontakt =================
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
     chat_id = str(message.chat.id)
     phone = message.contact.phone_number
+
     if users[chat_id]["registered"]:
         bot.send_message(chat_id, "❌ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
         main_menu(chat_id)
@@ -121,7 +125,7 @@ def contact_handler(message):
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
 
-# ================= Main menu =================
+# ================= Asosiy menyu =================
 def main_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(
@@ -141,7 +145,20 @@ def text_handler(message):
     text = message.text
 
     if text == "🔴 Konkursda qatnashish":
-        bot.send_message(chat_id, "Konkurs haqida ma’lumot va link...")
+        bot.send_message(chat_id,
+            "🎉 Konkursga qatnashish:\n"
+            "1️⃣ Majburiy kanallarga obuna bo‘lishingiz kerak.\n"
+            "2️⃣ ‘Obuna bo'ldim ✅’ tugmasini bosing.\n"
+            "3️⃣ Ro‘yxatdan o‘tish uchun telefon raqamingizni yuboring.\n\n"
+            "Konkurs davomiyligi: 1 oy\n"
+            "Boshlandi: 9 Sentabr\n"
+            "Tugadi: 9 Oktabr"
+        )
+
+    elif text == "🟢 Refeal link":
+        bot.send_message(chat_id,
+            f"🔗 Sizning refeal linkingiz: https://t.me/YOUR_BOT?start={chat_id}\n"
+            "Do‘stlaringiz ushbu havola orqali ro‘yxatdan o‘tsa, siz ball olasiz!")
 
     elif text == "🎁 Sovgalar":
         caption = (
@@ -162,25 +179,61 @@ def text_handler(message):
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {users.get(chat_id, {}).get('ball', 0)}")
 
     elif text == "📊 Reyting":
-        # Top 10 oddiy + adminlar ham ko‘rsin
         sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
-        text_out = "📊 Top Reyting:\n"
-        for idx, (uid, udata) in enumerate(sorted_users[:145], 1):
-            try:
-                username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
-            except:
-                username = "❌ username yo'q"
-            text_out += f"{idx}. {username} - {udata['ball']} ball\n"
+        text_out = "📊 Top 10 Oddiy Foydalanuvchilar:\n"
+        count = 0
+        for uid, udata in sorted_users:
+            if int(uid) not in ADMINS:
+                try:
+                    username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
+                except:
+                    username = "❌ username yo'q"
+                text_out += f"{count+1}. {username} - {udata['ball']} ball\n"
+                count += 1
+                if count >= 10:
+                    break
 
-        # Juda uzun xabarlarni bo‘lib yuborish
+        text_out += "\n👑 Adminlar va barcha foydalanuvchilar:\n"
+        for uid, udata in sorted_users:
+            if int(uid) in ADMINS:
+                try:
+                    username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
+                except:
+                    username = "❌ username yo'q"
+                text_out += f"{username} - {udata['ball']} ball\n"
+
         for chunk in [text_out[i:i+4000] for i in range(0, len(text_out), 4000)]:
             bot.send_message(chat_id, chunk)
-
-    elif text == "💡 Shartlar":
+            elif text == "💡 Shartlar":
         bot.send_message(chat_id,
-                         "TANLOV ShARTLARI ✅\n"
-                         "❗️ Ballar referral orqali to‘planadi.\n"
-                         "⏳ Yakun: 9 Oktabr 20:00\n"
-                         "‼️ Nakrutka qilganlar Ban bo‘ladi.")
+            "TANLOV ShARTLARI ✅\n"
+            "❗️ Ballar referral orqali to‘planadi.\n"
+            "⏳ Yakun: 9 Oktabr 20:00\n"
+            "‼️ Nakrutka qilganlar Ban bo‘ladi.")
 
+# ================= Maxfiy /pay komanda =================
+@bot.message_handler(commands=['pay'])
+def pay_handler(message):
+    chat_id = str(message.chat.id)
+    if chat_id != str(PAY_ADMIN):
+        return
+
+    try:
+        parts = message.text.split()
+        if len(parts) != 3:
+            bot.send_message(chat_id, "❌ To‘g‘ri format: /pay <user_id> <miqdor>")
+            return
+        uid = str(int(parts[1]))
+        amount = int(parts[2])
+
+        if uid not in users:
+            users[uid] = {"phone": None, "ball": 0, "registered": False, "referrer": None}
+
+        users[uid]["ball"] += amount
+        save_users()
+        bot.send_message(chat_id, f"✅ {uid} foydalanuvchiga {amount} ball qo‘shildi. Jami: {users[uid]['ball']}")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Xatolik: {e}")
+
+# ================= Botni ishga tushurish =================
 bot.infinity_polling()

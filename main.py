@@ -11,10 +11,16 @@ bot = telebot.TeleBot(TOKEN)
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
 # ================= Majburiy kanallar =================
-CHANNELS = [
+MAJBURIY_CHANNELS = [
     {"id": "@ixtiyor_uc", "name": "Kanal 1"},
     {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
-    {"id": "https://t.me/+J60RmZvVVPUyNmJi", "name": "Kanal 3"},  # Tekshirilmaydi
+]
+
+# ================= Qo‘shimcha kanallar (tekshirilmaydi) =================
+OPTIONAL_CHANNELS = [
+    {"name": "Kanal 3", "url": "https://t.me/+J60RmZvVVPUyNmJi"},
+    {"name": "Instagram", "url": "https://www.instagram.com/ixtiyor_gaming"},
+    {"name": "YouTube", "url": "https://youtube.com/@ixtiyorgaming?si=azcra7Wz-TQmUUrM"},
 ]
 
 # ================= Adminlar =================
@@ -29,33 +35,31 @@ users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
 def start_handler(message):
     chat_id = message.chat.id
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
-        types.InlineKeyboardButton("Kanal 2", url="https://t.me/ixtiyor_gaming"),
-        types.InlineKeyboardButton("Kanal 3", url="https://t.me/+J60RmZvVVPUyNmJi"),
-    )
-    markup.add(
-        types.InlineKeyboardButton("Instagram", url="https://www.instagram.com/ixtiyor_gaming"),
-        types.InlineKeyboardButton("YouTube", url="https://youtube.com/@ixtiyorgaming?si=azcra7Wz-TQmUUrM"),
-    )
+
+    # Majburiy kanallar
+    for ch in MAJBURIY_CHANNELS:
+        markup.add(types.InlineKeyboardButton(ch["name"], url=f"https://t.me/{ch['id'].replace('@','')}"))
+
+    # Ixtiyoriy kanallar (tekshirilmaydi)
+    for ch in OPTIONAL_CHANNELS:
+        markup.add(types.InlineKeyboardButton(ch["name"], url=ch["url"]))
+
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
     bot.send_message(
         chat_id,
-        "⛔️ Quyidagi kanallarga obuna bo‘ling:\nKanal 1\nKanal 2\nKanal 3",
+        "🚀 Konkursda ishtirok etish uchun quyidagi majburiy kanallarga obuna bo‘ling va 'Obuna bo'ldim ✅' tugmasini bosing",
         reply_markup=markup
     )
 
-
-# ================= CALLBACK handler =================
 # ================= CALLBACK handler =================
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
     if call.data == "sub_done":
-        # Majburiy kanallarni tekshiramiz
+        # Faqat majburiylarni tekshiramiz
         not_subscribed = []
-        for ch in CHANNELS:  # faqat Kanal 1 va Kanal 2
+        for ch in MAJBURIY_CHANNELS:
             try:
                 member = bot.get_chat_member(ch["id"], chat_id)
                 if member.status not in ["member", "administrator", "creator"]:
@@ -66,11 +70,6 @@ def callback_query(call):
         if not_subscribed:
             bot.answer_callback_query(call.id, "❌ Siz barcha majburiy kanallarga obuna bo‘lmadingiz!")
             bot.send_message(chat_id, "⛔️ Quyidagi kanallarga obuna bo‘ling:\n" + "\n".join(not_subscribed))
-            return
-
-        if users.get(chat_id, {}).get("registered"):
-            bot.answer_callback_query(call.id, "✅ Siz allaqachon ro'yxatdan o'tgansiz!")
-            main_menu(chat_id)
             return
 
         # Obuna bo'lganidan keyin raqamni so‘raymiz

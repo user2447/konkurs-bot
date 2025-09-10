@@ -157,7 +157,7 @@ def text_handler(message):
             "3 - o'rin LEDNIK 4 AKK\n"
             "4-5-6-7-8 o'rin RP\n"
             "9……19 120 UC\n"
-            "20……38  60 UC"
+            "20……40  60 UC"
         )
         bot.send_photo(chat_id, photo_file_id, caption=caption_text)
 

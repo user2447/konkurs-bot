@@ -28,7 +28,7 @@ ADMINS = [7717343429, 1900651840]
 PAY_ADMIN = 7717343429  # faqat shu odam /pay ishlatadi
 
 # ================= Xotirada saqlash =================
-users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
+users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool, "referrer": int}}
 
 # ================= START handler (referal bilan) =================
 @bot.message_handler(commands=['start'])
@@ -36,20 +36,15 @@ def start_handler(message):
     chat_id = message.chat.id
     args = message.text.split()
 
+    # Agar user ro‘yxatda bo‘lmasa, yaratamiz
+    if chat_id not in users:
+        users[chat_id] = {"phone": None, "ball": 0, "registered": False, "referrer": None}
+
     # Referral orqali kirgan bo‘lsa
     if len(args) > 1:
         referrer_id = int(args[1])
-        if referrer_id != chat_id:  # o‘zi-o‘ziga ball bermaydi
-            if chat_id not in users:  # faqat yangi foydalanuvchi bo‘lsa
-                users[chat_id] = {"phone": None, "ball": 0, "registered": False}
-                if referrer_id not in users:
-                    users[referrer_id] = {"phone": None, "ball": 0, "registered": False}
-                users[referrer_id]["ball"] += 10
-                bot.send_message(referrer_id, f"🎉 Sizga yangi do‘st qo‘shildi!\n+10 ball qo‘shildi.\nJami: {users[referrer_id]['ball']}")
-
-    # Agar user ro‘yxatda bo‘lmasa, yaratib qo‘yamiz
-    if chat_id not in users:
-        users[chat_id] = {"phone": None, "ball": 0, "registered": False}
+        if referrer_id != chat_id and not users[chat_id]["registered"]:
+            users[chat_id]["referrer"] = referrer_id
 
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -89,11 +84,14 @@ def callback_query(call):
             bot.send_message(chat_id, "⛔️ Quyidagi kanallarga obuna bo‘ling:\n" + "\n".join(not_subscribed))
             return
 
-        # Obuna bo'lganidan keyin raqamni so‘raymiz
-        markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-        contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
-        markup.add(contact_button)
-        bot.send_message(chat_id, "📲 Raqamingizni yuboring:", reply_markup=markup)
+        # Agar oldin ro‘yxatdan o‘tmagan bo‘lsa, raqamni so‘raymiz
+        if not users[chat_id]["registered"]:
+            markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+            contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
+            markup.add(contact_button)
+            bot.send_message(chat_id, "📲 Raqamingizni yuboring:", reply_markup=markup)
+        else:
+            bot.send_message(chat_id, "✅ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
         bot.answer_callback_query(call.id)
 
 # ================= Kontakt qabul qilish =================
@@ -101,11 +99,20 @@ def callback_query(call):
 def contact_handler(message):
     chat_id = message.chat.id
     phone = message.contact.phone_number
-    if chat_id not in users:
-        users[chat_id] = {"phone": phone, "ball": 0, "registered": True}
-    else:
-        users[chat_id]["phone"] = phone
-        users[chat_id]["registered"] = True
+
+    if users[chat_id]["registered"]:
+        bot.send_message(chat_id, "❌ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
+        return
+
+    users[chat_id]["phone"] = phone
+    users[chat_id]["registered"] = True
+
+    # Referrenga ball qo‘shamiz (faqat yangi ro‘yxatdan o‘tganda)
+    referrer_id = users[chat_id].get("referrer")
+    if referrer_id and referrer_id in users:
+        users[referrer_id]["ball"] += 10
+        bot.send_message(referrer_id, f"🎉 Sizga yangi do‘st qo‘shildi!\n+10 ball qo‘shildi.\nJami: {users[referrer_id]['ball']}")
+
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
 
@@ -215,7 +222,7 @@ def pay_handler(message):
         amount = int(parts[2])
 
         if uid not in users:
-            users[uid] = {"phone": None, "ball": 0, "registered": False}
+            users[uid] = {"phone": None, "ball": 0, "registered": False, "referrer": None}
 
         users[uid]["ball"] += amount
         bot.send_message(chat_id, f"✅ {uid} foydalanuvchiga {amount} ball qo‘shildi. Jami: {users[uid]['ball']}")

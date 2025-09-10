@@ -198,5 +198,4 @@ def text_handler(message):
         "Ballar qanday to'planadi?\n"
         "BOT sizga maxsus referral link beradi.\n"
         "O'sha link orqali kirgan har bir do'stingiz uchun 10 balldan qo'shiladi.\n\n"
-        "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlanadi.\n"
-        "
+        "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlan

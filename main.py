@@ -99,10 +99,12 @@ def callback_query(call):
             markup.add(contact_button)
             bot.send_message(chat_id, "📲 Raqamingizni yuboring:", reply_markup=markup)
         else:
-            main_menu(chat_id)
             bot.send_message(chat_id, "✅ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
+            main_menu(chat_id)
+
         bot.answer_callback_query(call.id)
-        # ================= Kontakt =================
+
+# ================= Kontakt =================
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
     chat_id = str(message.chat.id)
@@ -158,7 +160,8 @@ def text_handler(message):
     elif text == "🟢 Refeal link":
         bot.send_message(chat_id,
             f"🔗 Sizning refeal linkingiz: https://t.me/YOUR_BOT?start={chat_id}\n"
-            "Do‘stlaringiz ushbu havola orqali ro‘yxatdan o‘tsa, siz ball olasiz!")
+            "Do‘stlaringiz ushbu havola orqali ro‘yxatdan o‘tsa, siz ball olasiz!"
+        )
 
     elif text == "🎁 Sovgalar":
         caption = (
@@ -180,6 +183,8 @@ def text_handler(message):
 
     elif text == "📊 Reyting":
         sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
+
+        # Top 10 oddiy foydalanuvchilar
         text_out = "📊 Top 10 Oddiy Foydalanuvchilar:\n"
         count = 0
         for uid, udata in sorted_users:
@@ -193,23 +198,30 @@ def text_handler(message):
                 if count >= 10:
                     break
 
+        # Adminlar va barcha foydalanuvchilar
         text_out += "\n👑 Adminlar va barcha foydalanuvchilar:\n"
         for uid, udata in sorted_users:
-            if int(uid) in ADMINS:
+            if int(uid) in ADMINS or int(uid) not in ADMINS:
                 try:
                     username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
                 except:
                     username = "❌ username yo'q"
                 text_out += f"{username} - {udata['ball']} ball\n"
 
+        # Juda uzun xabarlarni bo‘lib yuborish
         for chunk in [text_out[i:i+4000] for i in range(0, len(text_out), 4000)]:
             bot.send_message(chat_id, chunk)
-            elif text == "💡 Shartlar":
+
+    elif text == "💡 Shartlar":
         bot.send_message(chat_id,
             "TANLOV ShARTLARI ✅\n"
             "❗️ Ballar referral orqali to‘planadi.\n"
             "⏳ Yakun: 9 Oktabr 20:00\n"
-            "‼️ Nakrutka qilganlar Ban bo‘ladi.")
+            "‼️ Nakrutka qilganlar Ban bo‘ladi."
+        )
+
+    else:
+        bot.send_message(chat_id, "❌ Noma’lum buyruq")
 
 # ================= Maxfiy /pay komanda =================
 @bot.message_handler(commands=['pay'])

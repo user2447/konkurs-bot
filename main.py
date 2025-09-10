@@ -104,7 +104,6 @@ def callback_query(call):
             bot.send_message(chat_id, "✅ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
         bot.answer_callback_query(call.id)
 
-., [9/10/2025 11:02 PM]
 # ================= Kontakt =================
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
@@ -186,4 +185,4 @@ def text_handler(message):
         "TANLOV ShARTLARI ✅\n"
         "❗️ Ballar referral orqali to‘planadi.\n"
         "⏳ Yakun: 9 Oktabr 20:00\n"
-        "‼️ Nakrutka qilganlar Ban bo‘ladi."
+        "‼️ Nakrutka qilganlar Ban bo‘ladi.")

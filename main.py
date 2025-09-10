@@ -36,11 +36,9 @@ def start_handler(message):
     chat_id = message.chat.id
     args = message.text.split()
 
-    # Agar user ro‘yxatda bo‘lmasa, yaratamiz
     if chat_id not in users:
         users[chat_id] = {"phone": None, "ball": 0, "registered": False, "referrer": None}
 
-    # Referral orqali kirgan bo‘lsa
     if len(args) > 1:
         referrer_id = int(args[1])
         if referrer_id != chat_id and not users[chat_id]["registered"]:
@@ -48,11 +46,9 @@ def start_handler(message):
 
     markup = types.InlineKeyboardMarkup(row_width=1)
 
-    # Majburiy kanallar
     for ch in MAJBURIY_CHANNELS:
         markup.add(types.InlineKeyboardButton(ch["name"], url=f"https://t.me/{ch['id'].replace('@','')}"))
 
-    # Ixtiyoriy kanallar
     for ch in OPTIONAL_CHANNELS:
         markup.add(types.InlineKeyboardButton(ch["name"], url=ch["url"]))
 
@@ -69,7 +65,6 @@ def start_handler(message):
 def callback_query(call):
     chat_id = call.from_user.id
     if call.data == "sub_done":
-        # Faqat majburiylarni tekshiramiz
         not_subscribed = []
         for ch in MAJBURIY_CHANNELS:
             try:
@@ -84,7 +79,6 @@ def callback_query(call):
             bot.send_message(chat_id, "⛔️ Quyidagi kanallarga obuna bo‘ling:\n" + "\n".join(not_subscribed))
             return
 
-        # Agar oldin ro‘yxatdan o‘tmagan bo‘lsa, raqamni so‘raymiz
         if not users[chat_id]["registered"]:
             markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
             contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
@@ -107,7 +101,6 @@ def contact_handler(message):
     users[chat_id]["phone"] = phone
     users[chat_id]["registered"] = True
 
-    # Referrenga ball qo‘shamiz (faqat yangi ro‘yxatdan o‘tganda)
     referrer_id = users[chat_id].get("referrer")
     if referrer_id and referrer_id in users:
         users[referrer_id]["ball"] += 10
@@ -172,23 +165,22 @@ def text_handler(message):
         ball = users.get(chat_id, {}).get("ball", 0)
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {ball}")
 
- elif text == "📊 Reyting":
-    sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
+    elif text == "📊 Reyting":
+        sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
 
-    if chat_id in ADMINS:
-        # Adminlarga barcha foydalanuvchilarni chiqaramiz
-        text_out = "📊 To‘liq Reyting (Adminlar uchun):\n"
-        for idx, (uid, udata) in enumerate(sorted_users, 1):
-            username = f"@{bot.get_chat(uid).username}" if bot.get_chat(uid).username else "❌ username yo'q"
-            text_out += f"{idx}. {uid} {username} - {udata['ball']} ball\n"
+        if chat_id in ADMINS:
+            text_out = "📊 To‘liq Reyting (Adminlar uchun):\n"
+            for idx, (uid, udata) in enumerate(sorted_users, 1):
+                username = f"@{bot.get_chat(uid).username}" if bot.get_chat(uid).username else "❌ username yo'q"
+                text_out += f"{idx}. {uid} {username} - {udata['ball']} ball\n"
 
-        bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
-    else:
-        # Oddiy userlarga Top 10
-        text_out = "📊 Top 10 Reyting:\n"
-        for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
-            text_out += f"{idx}. {uid} - {udata['ball']} ball\n"
-        bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+            bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+        else:
+            text_out = "📊 Top 10 Reyting:\n"
+            for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
+                username = f"@{bot.get_chat(uid).username}" if bot.get_chat(uid).username else "❌ username yo'q"
+                text_out += f"{idx}. {username} - {udata['ball']} ball\n"
+            bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
 
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,

@@ -179,19 +179,22 @@ def text_handler(message):
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {users.get(chat_id, {}).get('ball', 0)}")
 
     elif text == "📊 Reyting":
-        sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
-        text_out = "📊 Reyting (hamma foydalanuvchilar):\n"
-        count = 0
-        for uid, udata in sorted_users:
-            try:
-                username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
-            except:
-                username = "❌ username yo'q"
-            text_out += f"{count+1}. {username} - {udata['ball']} ball\n"
-            count += 1
+    sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
+    text_out = "📊 Reyting (hamma foydalanuvchilar):\n"
+    count = 0
+    for uid, udata in sorted_users:
+        # Foydalanuvchi username mavjud bo'lmasa, chat_id bilan ko'rsatamiz
+        try:
+            user = bot.get_chat(int(uid))
+            username = f"@{user.username}" if user.username else f"ID:{uid}"
+        except:
+            username = f"ID:{uid}"  # bot foydalanuvchini ololmasa ham ID ko‘rsatilsin
+        text_out += f"{count+1}. {username} - {udata['ball']} ball\n"
+        count += 1
 
-        for chunk in [text_out[i:i + 4000] for i in range(0, len(text_out), 4000)]:
-            bot.send_message(chat_id, chunk)
+    for chunk in [text_out[i:i + 4000] for i in range(0, len(text_out), 4000)]:
+        bot.send_message(chat_id, chunk)
+
 
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,

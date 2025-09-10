@@ -156,7 +156,7 @@ def text_handler(message):
 
     elif text == "🟢 Refeal link":
         bot.send_message(chat_id,
-                         f"🔗 Sizning refeal linkingiz: https://t.me/YOUR_BOT?start={chat_id}\n"
+                         f"🔗 Sizning refeal linkingiz: https://t.me/ixtiyor_rp_bot?start={chat_id}\n"
                          "Do‘stlaringiz ushbu havola orqali ro‘yxatdan o‘tsa, siz ball olasiz!"
                          )
 
@@ -180,29 +180,15 @@ def text_handler(message):
 
     elif text == "📊 Reyting":
         sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
-        if int(chat_id) in ADMINS:
-            # Admin: barcha foydalanuvchilar
-            text_out = "👑 Adminlar va barcha foydalanuvchilar:\n"
-            for uid, udata in sorted_users:
-                try:
-                    username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
-                except:
-                    username = "❌ username yo'q"
-                text_out += f"{username} - {udata['ball']} ball\n"
-        else:
-            # Oddiy foydalanuvchi: top 10
-            text_out = "📊 Top 10 Oddiy Foydalanuvchilar:\n"
-            count = 0
-            for uid, udata in sorted_users:
-                if int(uid) not in ADMINS:
-                    try:
-                        username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
-                    except:
-                        username = "❌ username yo'q"
-                    text_out += f"{count+1}. {username} - {udata['ball']} ball\n"
-                    count += 1
-                    if count >= 10:
-                        break
+        text_out = "📊 Reyting (hamma foydalanuvchilar):\n"
+        count = 0
+        for uid, udata in sorted_users:
+            try:
+                username = f"@{bot.get_chat(int(uid)).username}" if bot.get_chat(int(uid)).username else "❌ username yo'q"
+            except:
+                username = "❌ username yo'q"
+            text_out += f"{count+1}. {username} - {udata['ball']} ball\n"
+            count += 1
 
         for chunk in [text_out[i:i + 4000] for i in range(0, len(text_out), 4000)]:
             bot.send_message(chat_id, chunk)

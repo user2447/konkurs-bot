@@ -2,49 +2,47 @@ import os
 from dotenv import load_dotenv
 import telebot
 from telebot import types
-
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
-bot = telebot.TeleBot(TOKEN)
-
-# ===============================================
-# POSTGRESQL bilan ulanish – HOZIRCHA COMMENT
-# ===============================================
-"""
-import os
-from dotenv import load_dotenv
 import psycopg2
 
 load_dotenv()
+TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+bot = telebot.TeleBot(TOKEN)
+
+# ================= DB bilan ulanish =================
 try:
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-    print("✅ PostgreSQL bilan ulanish muvaffaqiyatli!")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id BIGINT PRIMARY KEY,
+            phone TEXT,
+            ball INTEGER DEFAULT 0,
+            registered INTEGER DEFAULT 0,
+            referrer BIGINT
+        )
+    """)
+    conn.commit()
 except Exception as e:
-    print(f"❌ PostgreSQL ga ulanishda xato: {e}")
+    print(f"❌ DB xato: {e}")
     exit(1)
 
-# Jadval yaratish (agar mavjud bo‘lmasa)
-cursor.execute(\"\"\"
-CREATE TABLE IF NOT EXISTS users (
-    user_id BIGINT PRIMARY KEY,
-    phone TEXT,
-    ball INTEGER DEFAULT 0,
-    registered INTEGER DEFAULT 0,
-    referrer BIGINT
-)
-\"\"\")
-conn.commit()
-"""
+# ================= Sovg'alar rasmi =================
+photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
-# ===============================================
-# Foydalanuvchi qo'shish, ball qo'shish, olish – HOZIRCHA COMMENT
-# ===============================================
-"""
+# ================= Majburiy kanallar =================
+CHANNELS = [
+    {"id": "@ixtiyor_uc", "name": "Kanal 1"},
+    {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
+]
+
+# ================= Foydalanuvchi funksiyalari =================
 def add_user(user_id, phone, referrer=None):
-    cursor.execute("INSERT INTO users (user_id, phone, referrer) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO NOTHING", (user_id, phone, referrer))
+    cursor.execute("""
+        INSERT INTO users (user_id, phone, referrer, registered) 
+        VALUES (%s, %s, %s, 1) ON CONFLICT (user_id) DO NOTHING
+    """, (user_id, phone, referrer))
     conn.commit()
 
 def add_ball(user_id, amount):
@@ -56,10 +54,6 @@ def get_ball(user_id):
     result = cursor.fetchone()
     return result[0] if result else 0
 
-def get_top_users(limit=10):
-    cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT %s", (limit,))
-    return cursor.fetchall()
-
 def is_registered(user_id):
     cursor.execute("SELECT registered FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
@@ -69,36 +63,11 @@ def get_referrer(user_id):
     cursor.execute("SELECT referrer FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     return result[0] if result else None
-"""
 
-# Sovg'alar rasmi
-photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
-
-# Majburiy kanallar
-CHANNELS = [
-    {"id": "@ixtiyor_uc", "name": "Kanal 1"},
-    {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
-]
-
-# Obuna tekshirish – HOZIRCHA COMMENT
-"""
-def check_subscription(user_id):
-    not_subscribed = []
-    for ch in CHANNELS:
-        try:
-            status = bot.get_chat_member(ch["id"], user_id).status
-            if status in ["left", "kicked"]:
-                not_subscribed.append(ch["name"])
-        except:
-            not_subscribed.append(ch["name"])
-    return not_subscribed
-"""
-
-# START handler
+# ================= START handler =================
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
-    # Inline tugmalar
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
@@ -110,34 +79,27 @@ def start_handler(message):
     )
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
-    bot.send_message(
-        chat_id,
+    bot.send_message(chat_id,
         "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling va “Obuna bo'ldim ✅” tugmasini bosing.",
-        reply_markup=markup,
-        parse_mode="Markdown"
+        reply_markup=markup
     )
 
-# CALLBACK handler – HOZIRCHA COMMENT
-"""
+# ================= CALLBACK handler =================
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
     if call.data == "sub_done":
-        not_subscribed = check_subscription(chat_id)
-        if not_subscribed:
-            bot.answer_callback_query(call.id,
-                f"❌ Siz quyidagi kanallarga obuna bo‘lmadingiz: {', '.join(not_subscribed)}",
-                show_alert=True
-            )
+        if is_registered(chat_id):
+            bot.answer_callback_query(call.id, "✅ Siz allaqachon ro'yxatdan o'tgansiz!")
+            main_menu(chat_id)
             return
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)
-        bot.send_message(chat_id, "📲 Raqamni yuborish tugmasini bosgan holda raqamingizni yuboring!", reply_markup=markup)
-"""
+        bot.send_message(chat_id, "📲 Raqamingizni yuboring:", reply_markup=markup)
+        bot.answer_callback_query(call.id)
 
-# Kontakt qabul qilish – HOZIRCHA COMMENT
-"""
+# ================= Kontakt qabul qilish =================
 @bot.message_handler(content_types=['contact'])
 def contact_handler(message):
     chat_id = message.chat.id
@@ -149,9 +111,8 @@ def contact_handler(message):
         bot.send_message(referrer, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(referrer)}")
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
-"""
 
-# Asosiy menyu
+# ================= Asosiy menyu =================
 def main_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(
@@ -168,7 +129,7 @@ def main_menu(chat_id):
     )
     bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
 
-# Tugmalar handleri
+# ================= Tugmalar handleri =================
 @bot.message_handler(func=lambda message: True)
 def text_handler(message):
     chat_id = message.chat.id
@@ -189,7 +150,6 @@ def text_handler(message):
         "Tugashi: 9 ~ Oktabr\n\n"
         f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
         )
-
     elif text == "🎁 Sovgalar":
         caption_text = (
             "Ixtiyor konkurs bot o'zining konkursiga start berdi\n"
@@ -202,13 +162,15 @@ def text_handler(message):
             "6 - o'rin 20 TA 60 UC"
         )
         bot.send_photo(chat_id, photo_file_id, caption=caption_text)
-
     elif text == "👤 Ballarim":
-        bot.send_message(chat_id, "👤 Sizning ballaringiz: 0")  # DB ishlamaydi, 0 ko'rsatilyapti
-
+        bot.send_message(chat_id, f"👤 Sizning ballaringiz: {get_ball(chat_id)}")
     elif text == "📊 Reyting":
-        bot.send_message(chat_id, "📊 Top 10 Reyting:\n1. user - 0 ball")  # DB ishlamaydi
-
+        cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT 10")
+        rows = cursor.fetchall()
+        text_out = "📊 Top 10 Reyting:\n"
+        for idx, row in enumerate(rows, 1):
+            text_out += f"{idx}. {row[0]} - {row[1]} ball\n"
+        bot.send_message(chat_id, text_out if rows else "Hozircha reyting mavjud emas.")
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,
         "TANLOV ShARTLARI ✅\n\n"
@@ -221,10 +183,9 @@ def text_handler(message):
         "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
         "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
         )
-
     elif text == "🟢 Refeal link":
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
-        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
+        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}")
 
-# Botni ishga tushurish
+# ================= Bot ishga tushurish =================
 bot.infinity_polling()

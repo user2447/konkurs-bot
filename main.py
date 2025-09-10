@@ -2,31 +2,10 @@ import os
 from dotenv import load_dotenv
 import telebot
 from telebot import types
-import psycopg2
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 bot = telebot.TeleBot(TOKEN)
-
-# ================= DB bilan ulanish =================
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id BIGINT PRIMARY KEY,
-            phone TEXT,
-            ball INTEGER DEFAULT 0,
-            registered INTEGER DEFAULT 0,
-            referrer BIGINT
-        )
-    """)
-    conn.commit()
-except Exception as e:
-    print(f"❌ DB xato: {e}")
-    exit(1)
 
 # ================= Sovg'alar rasmi =================
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
@@ -37,43 +16,8 @@ CHANNELS = [
     {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
 ]
 
-# ================= Foydalanuvchi funksiyalari =================
-def add_user(user_id, phone, referrer=None):
-    cursor.execute("""
-        INSERT INTO users (user_id, phone, referrer, registered) 
-        VALUES (%s, %s, %s, 1) ON CONFLICT (user_id) DO NOTHING
-    """, (user_id, phone, referrer))
-    conn.commit()
-
-def add_ball(user_id, amount):
-    cursor.execute("UPDATE users SET ball = ball + %s WHERE user_id = %s", (amount, user_id))
-    conn.commit()
-
-def get_ball(user_id):
-    cursor.execute("SELECT ball FROM users WHERE user_id = %s", (user_id,))
-    result = cursor.fetchone()
-    return result[0] if result else 0
-
-def is_registered(user_id):
-    cursor.execute("SELECT registered FROM users WHERE user_id = %s", (user_id,))
-    result = cursor.fetchone()
-    return result and result[0] == 1
-
-def get_referrer(user_id):
-    cursor.execute("SELECT referrer FROM users WHERE user_id = %s", (user_id,))
-    result = cursor.fetchone()
-    return result[0] if result else None
-
-def check_subscription(user_id):
-    not_subscribed = []
-    for ch in CHANNELS:
-        try:
-            status = bot.get_chat_member(ch["id"], user_id).status
-            if status in ["left", "kicked"]:
-                not_subscribed.append(ch["name"])
-        except:
-            not_subscribed.append(ch["name"])
-    return not_subscribed
+# ================= Xotirada saqlash =================
+users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
 
 # ================= START handler =================
 @bot.message_handler(commands=['start'])
@@ -100,19 +44,12 @@ def start_handler(message):
 def callback_query(call):
     chat_id = call.from_user.id
     if call.data == "sub_done":
-        if is_registered(chat_id):
+        if users.get(chat_id, {}).get("registered"):
             bot.answer_callback_query(call.id, "✅ Siz allaqachon ro'yxatdan o'tgansiz!")
             main_menu(chat_id)
             return
 
-        not_subscribed = check_subscription(chat_id)
-        if not_subscribed:
-            bot.answer_callback_query(call.id,
-                f"❌ Siz quyidagi kanallarga obuna bo‘lmadingiz: {', '.join(not_subscribed)}",
-                show_alert=True
-            )
-            return
-
+        # Oddiy tekshirishni o'tkazib yuboramiz, obuna deb hisoblaymiz
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)
@@ -124,11 +61,8 @@ def callback_query(call):
 def contact_handler(message):
     chat_id = message.chat.id
     phone = message.contact.phone_number
-    referrer = get_referrer(chat_id)
-    add_user(chat_id, phone, referrer)
-    if referrer:
-        add_ball(referrer, 10)
-        bot.send_message(referrer, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(referrer)}")
+    if chat_id not in users:
+        users[chat_id] = {"phone": phone, "ball": 0, "registered": True}
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
 
@@ -183,14 +117,14 @@ def text_handler(message):
         )
         bot.send_photo(chat_id, photo_file_id, caption=caption_text)
     elif text == "👤 Ballarim":
-        bot.send_message(chat_id, f"👤 Sizning ballaringiz: {get_ball(chat_id)}")
+        ball = users.get(chat_id, {}).get("ball", 0)
+        bot.send_message(chat_id, f"👤 Sizning ballaringiz: {ball}")
     elif text == "📊 Reyting":
-        cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC LIMIT 10")
-        rows = cursor.fetchall()
+        sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
         text_out = "📊 Top 10 Reyting:\n"
-        for idx, row in enumerate(rows, 1):
-            text_out += f"{idx}. {row[0]} - {row[1]} ball\n"
-        bot.send_message(chat_id, text_out if rows else "Hozircha reyting mavjud emas.")
+        for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
+            text_out += f"{idx}. {uid} - {udata['ball']} ball\n"
+        bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,
         "TANLOV ShARTLARI ✅\n\n"

@@ -1,4 +1,3 @@
-., [9/10/2025 11:02 PM]
 import os
 import json
 from dotenv import load_dotenv

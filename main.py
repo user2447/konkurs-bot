@@ -185,3 +185,6 @@ def text_handler(message):
         "❗️ Ballar referral orqali to‘planadi.\n"
         "⏳ Yakun: 9 Oktabr 20:00\n"
         "‼️ Nakrutka qilganlar Ban bo‘ladi.")
+
+
+        

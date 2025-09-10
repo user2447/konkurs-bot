@@ -1,10 +1,11 @@
-import telebot
 import os
+from flask import Flask, request
+import telebot
 from telebot import types
 from dotenv import load_dotenv
 import psycopg2
 
-# .env dan o'qish
+# .env faylidan o'qish
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# Foydalanuvchi qo'shish yoki yangilash
+# Foydalanuvchi qo'shish/yangilash
 def add_user(user_id, phone, referrer=None):
     cursor.execute("""
     INSERT INTO users (user_id, phone, ball, registered, referrer)
@@ -81,12 +82,38 @@ def check_subscription(user_id):
             not_subscribed.append(ch["name"])
     return not_subscribed
 
-# START handler
+# Asosiy menyu
+def main_menu(chat_id):
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add(
+        types.KeyboardButton("🔴 Konkursda qatnashish"),
+        types.KeyboardButton("🟢 Refeal link")
+    )
+    markup.add(
+        types.KeyboardButton("🎁 Sovgalar"),
+        types.KeyboardButton("👤 Ballarim")
+    )
+    markup.add(
+        types.KeyboardButton("📊 Reyting"),
+        types.KeyboardButton("💡 Shartlar")
+    )
+    bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
+
+# Flask server yaratish (Railway uchun)
+server = Flask(__name__)
+
+@server.route(f"/{TOKEN}", methods=['POST'])
+def webhook():
+    json_str = request.get_data().decode('UTF-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "ok", 200
+
+# /start handler
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
     args = message.text.split()
-
     ref_id = None
     if len(args) > 1:
         try:
@@ -114,14 +141,28 @@ def start_handler(message):
     )
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
-    bot.send_message(
-        chat_id,
+    bot.send_message(chat_id,
         "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling va “Obuna bo'ldim ✅” tugmasini bosing.",
         reply_markup=markup,
         parse_mode="Markdown"
     )
 
-# CALLBACK handler
+# Kontakt handler
+@bot.message_handler(content_types=['contact'])
+def contact_handler(message):
+    chat_id = message.chat.id
+    phone = message.contact.phone_number
+    referrer = get_referrer(chat_id)
+    add_user(chat_id, phone, referrer)
+
+    if referrer:
+        add_ball(referrer, 10)
+        bot.send_message(referrer, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(referrer)}")
+
+    bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
+    main_menu(chat_id)
+
+# Callback handler
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
@@ -133,129 +174,31 @@ def callback_query(call):
                 show_alert=True
             )
             return
-
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)
         bot.send_message(chat_id, "📲 Raqamni yuborish tugmasini bosgan holda raqamingizni yuboring!", reply_markup=markup)
 
-# Kontakt qabul qilish
-@bot.message_handler(content_types=['contact'])
-def contact_handler(message):
-    chat_id = message.chat.id
-    phone = message.contact.phone_number
-
-    referrer = get_referrer(chat_id)
-    add_user(chat_id, phone, referrer)
-
-    if referrer:
-        add_ball(referrer, 10)
-        bot.send_message(referrer, f"🎉 Sizga +10 ball qo'shildi! Jami: {get_ball(referrer)}")
-
-    bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz va boshlangʼich 0 ballga ega bo'ldingiz!")
-    main_menu(chat_id)
-
-# Asosiy menyu
-def main_menu(chat_id):
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add(
-        types.KeyboardButton("🔴 Konkursda qatnashish"),
-        types.KeyboardButton("🟢 Refeal link")
-    )
-    markup.add(
-        types.KeyboardButton("🎁 Sovgalar"),
-        types.KeyboardButton("👤 Ballarim")
-    )
-    markup.add(
-        types.KeyboardButton("📊 Reyting"),
-        types.KeyboardButton("💡 Shartlar")
-    )
-    bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
-
-# Tugmalar handleri
+# Text handler
 @bot.message_handler(func=lambda message: True)
 def text_handler(message):
     chat_id = message.chat.id
     text = message.text
 
     if text == "🔴 Konkursda qatnashish":
-        bot.send_message(chat_id,
-        "Ixtiyor konkurs bot o'zining konkursiga start berdi\n"
-        "Qatnashing va sovgalarni qo'lga kiriting 😍\n\n"
-        "1 - o'rin Lednik 6 AKK\n"
-        "2 - o'rin LEDNIK 5 AKK\n"
-        "3 - o'rin LEDNIK 4 AKK\n"
-        "4 - o'rin 5 TA RP\n"
-        "5 - o'rin 10 TA 120 UC\n"
-        "6 - o'rin 20 TA 60 UC\n\n"
-        "🔥 Konkurs 1 oy davom etadi.\n"
-        "Boshlandi: 9 ~ Sentabr\n"
-        "Tugashi: 9 ~ Oktabr\n\n"
-        f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
-        )
-
+        bot.send_message(chat_id, "Konkurs haqida ma’lumot...")
     elif text == "🎁 Sovgalar":
-        caption_text = (
-            "Ixtiyor konkurs bot o'zining konkursiga start berdi\n"
-            "Qatnashing va yutuqlarni qo'lga kiriting 😍\n\n"
-            "1 - o'rin Lednik 6 AKK\n"
-            "2 - o'rin LEDNIK 5 AKK\n"
-            "3 - o'rin LEDNIK 4 AKK\n"
-            "4 - o'rin 5 TA RP\n"
-            "5 - o'rin 10 TA 120 UC\n"
-            "6 - o'rin 20 TA 60 UC"
-        )
-        bot.send_photo(chat_id, photo_file_id, caption=caption_text)
-
+        bot.send_photo(chat_id, photo_file_id, caption="Sovgalar ro'yxati...")
     elif text == "👤 Ballarim":
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {get_ball(chat_id)}")
-
-    elif text == "📊 Reyting":
-        cursor.execute("SELECT user_id, ball FROM users ORDER BY ball DESC")
-        all_users = cursor.fetchall()
-        text_msg = ""
-        if chat_id in ADMINS:  # adminlar
-            text_msg = "📊 Reyting (hamma foydalanuvchilar):\n"
-            for i, (uid, ball) in enumerate(all_users, start=1):
-                try:
-                    user = bot.get_chat(uid)
-                    username = f"@{user.username}" if user.username else f"ID:{uid}"
-                except:
-                    username = f"ID:{uid}"
-                text_msg += f"{i}. {username} - {ball} ball\n"
-        else:  # oddiy foydalanuvchilar
-            text_msg = "📊 Top 10 Reyting:\n"
-            count = 0
-            for uid, ball in all_users:
-                if count >= 10:
-                    break
-                try:
-                    user = bot.get_chat(uid)
-                    username = f"@{user.username}" if user.username else f"ID:{uid}"
-                except:
-                    username = f"ID:{uid}"
-                text_msg += f"{count+1}. {username} - {ball} ball\n"
-                count += 1
-
-        # Juda uzun xabarlar bo'lsa bo'lib yuborish
-        for chunk in [text_msg[i:i + 4000] for i in range(0, len(text_msg), 4000)]:
-            bot.send_message(chat_id, chunk)
-
-    elif text == "💡 Shartlar":
-        bot.send_message(chat_id,
-        "TANLOV ShARTLARI ✅\n\n"
-        "❗️ Ushbu tanlovda g'oliblar random orqali emas, balki to'plagan ballariga qarab aniqlanadi.\n\n"
-        "Ballar qanday to'planadi?\n"
-        "BOT sizga maxsus referral link beradi.\n"
-        "O'sha link orqali kirgan har bir do'stingiz uchun 10 balldan qo'shiladi.\n\n"
-        "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlanadi.\n"
-        "❗️ Diqqat! Nakrutka qilganlar Ban bo‘ladi.\n"
-        "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
-        "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
-        )
-
     elif text == "🟢 Refeal link":
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
-        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
+        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}")
 
-bot.infinity_polling()
+# Webhookni set qilish (Railway deployda bitta marta bajariladi)
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # masalan: https://your-app.up.railway.app
+bot.remove_webhook()
+bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

@@ -26,7 +26,7 @@ except Exception as e:
     exit(1)
 
 # Jadval yaratish (agar mavjud bo‘lmasa)
-cursor.execute("""
+cursor.execute(\"\"\"
 CREATE TABLE IF NOT EXISTS users (
     user_id BIGINT PRIMARY KEY,
     phone TEXT,
@@ -34,9 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
     registered INTEGER DEFAULT 0,
     referrer BIGINT
 )
-""")
+\"\"\")
 conn.commit()
-
 """
 
 # ===============================================
@@ -226,4 +225,5 @@ def text_handler(message):
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
         bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
 
+# Botni ishga tushurish
 bot.infinity_polling()

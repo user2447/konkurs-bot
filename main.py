@@ -5,28 +5,37 @@ from telebot import types
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(",")))  # .env: ADMIN_IDS="id1,id2"
+OWNER_ID = 7717343429  # faqat egaga /pay ishlaydi
+
 bot = telebot.TeleBot(TOKEN)
 
 # ================= Sovg'alar rasmi =================
 photo_file_id = "AgACAgIAAxkBAAPlaL_8Zj819ujsWbOOHdpR193AlkoAArD1MRuYugABSngTwRZxBPimAQADAgADeQADNgQ"
 
-# ================= Majburiy kanallar =================
+# ================= Kanallar =================
 CHANNELS = [
     {"id": "@ixtiyor_uc", "name": "Kanal 1"},
     {"id": "@ixtiyor_gaming", "name": "Kanal 2"},
 ]
+OPTIONAL_CHANNEL = {"id": "https://t.me/+J60RmZvVVPUyNmJi", "name": "3-Kanal (ixtiyoriy)"}
 
 # ================= Xotirada saqlash =================
-users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
+users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool, "username": str}}
 
 # ================= START handler =================
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
+    username = message.from_user.username or ""
+    if chat_id not in users:
+        users[chat_id] = {"phone": None, "ball": 0, "registered": False, "username": username}
+
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton("Kanal 1", url="https://t.me/ixtiyor_uc"),
         types.InlineKeyboardButton("Kanal 2", url="https://t.me/ixtiyor_gaming"),
+        types.InlineKeyboardButton("3-Kanal (ixtiyoriy)", url=OPTIONAL_CHANNEL["id"]),
     )
     markup.add(
         types.InlineKeyboardButton("Instagram", url="https://www.instagram.com/ixtiyor_gaming"),
@@ -35,7 +44,8 @@ def start_handler(message):
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
     bot.send_message(chat_id,
-        "🚀 Konkursda ishtirok etish uchun quyidagi kanallarga obuna bo‘ling va “Obuna bo'ldim ✅” tugmasini bosing.",
+        "🚀 Konkursda qatnashish uchun 1 va 2-kanallarga obuna bo‘ling.\n"
+        "3-kanalga obuna bo‘lish majburiy emas.",
         reply_markup=markup
     )
 
@@ -49,7 +59,6 @@ def callback_query(call):
             main_menu(chat_id)
             return
 
-        # Oddiy tekshirishni o'tkazib yuboramiz, obuna deb hisoblaymiz
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)
@@ -61,8 +70,8 @@ def callback_query(call):
 def contact_handler(message):
     chat_id = message.chat.id
     phone = message.contact.phone_number
-    if chat_id not in users:
-        users[chat_id] = {"phone": phone, "ball": 0, "registered": True}
+    users[chat_id]["phone"] = phone
+    users[chat_id]["registered"] = True
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
 
@@ -91,55 +100,94 @@ def text_handler(message):
 
     if text == "🔴 Konkursda qatnashish":
         bot.send_message(chat_id,
-        "Ixtiyor konkurs bot o'zining konkursiga start berdi\n"
-        "Qatnashing va sovgalarni qo'lga kiriting 😍\n\n"
-        "1 - o'rin Lednik 6 AKK\n"
-        "2 - o'rin LEDNIK 5 AKK\n"
-        "3 - o'rin LEDNIK 4 AKK\n"
-        "4 - o'rin 5 TA RP\n"
-        "5 - o'rin 10 TA 120 UC\n"
-        "6 - o'rin 20 TA 60 UC\n\n"
+        "Ixtiyor konkurs bot konkursini boshladi!\n"
+        "Qatnashing va sovgalarni qo‘lga kiriting 😍\n\n"
+        "1 - o‘rin: Lednik 6 AKK\n"
+        "2 - o‘rin: LEDNIK 5 AKK\n"
+        "3 - o‘rin: LEDNIK 4 AKK\n"
+        "4 - o‘rin: 5 TA RP\n"
+        "5 - o‘rin: 10 TA 120 UC\n"
+        "6 - o‘rin: 20 TA 60 UC\n\n"
         "🔥 Konkurs 1 oy davom etadi.\n"
         "Boshlandi: 9 ~ Sentabr\n"
         "Tugashi: 9 ~ Oktabr\n\n"
         f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
         )
+
     elif text == "🎁 Sovgalar":
         caption_text = (
-            "Ixtiyor konkurs bot o'zining konkursiga start berdi\n"
-            "Qatnashing va yutuqlarni qo'lga kiriting 😍\n\n"
-            "1 - o'rin Lednik 6 AKK\n"
-            "2 - o'rin LEDNIK 5 AKK\n"
-            "3 - o'rin LEDNIK 4 AKK\n"
-            "4 - o'rin 5 TA RP\n"
-            "5 - o'rin 10 TA 120 UC\n"
-            "6 - o'rin 20 TA 60 UC"
+            "🎁 Sovg‘alar ro‘yxati:\n\n"
+            "1 - o‘rin: Lednik 6 AKK\n"
+            "2 - o‘rin: LEDNIK 5 AKK\n"
+            "3 - o‘rin: LEDNIK 4 AKK\n"
+            "4 - o‘rin: 5 TA RP\n"
+            "5 - o‘rin: 10 TA 120 UC\n"
+            "6 - o‘rin: 20 TA 60 UC"
         )
         bot.send_photo(chat_id, photo_file_id, caption=caption_text)
+
     elif text == "👤 Ballarim":
         ball = users.get(chat_id, {}).get("ball", 0)
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {ball}")
+
     elif text == "📊 Reyting":
         sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
-        text_out = "📊 Top 10 Reyting:\n"
-        for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
-            text_out += f"{idx}. {uid} - {udata['ball']} ball\n"
+        if chat_id in ADMIN_IDS:
+            limit = 38
+            text_out = "📊 Top 38 Reyting (Admin uchun):\n"
+            for idx, (uid, udata) in enumerate(sorted_users[:limit], 1):
+                uname = f"@{udata['username']}" if udata['username'] else "No username"
+                text_out += f"{idx}. {uid} ({uname}) - {udata['ball']} ball\n"
+        else:
+            limit = 10
+            text_out = "📊 Top 10 Reyting:\n"
+            for idx, (uid, udata) in enumerate(sorted_users[:limit], 1):
+                text_out += f"{idx}. {udata['ball']} ball\n"
         bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,
-        "TANLOV ShARTLARI ✅\n\n"
-        "❗️ Ushbu tanlovda g'oliblar random orqali emas, balki to'plagan ballariga qarab aniqlanadi.\n\n"
-        "Ballar qanday to'planadi?\n"
-        "BOT sizga maxsus referral link beradi.\n"
-        "O'sha link orqali kirgan har bir do'stingiz uchun 10 balldan qo'shiladi.\n\n"
+        "📌 TANLOV ShARTLARI:\n\n"
+        "❗️ G‘oliblar random emas, ballariga qarab aniqlanadi.\n"
+        "Har bir referal = 10 ball.\n"
         "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlanadi.\n"
-        "❗️ Diqqat! Nakrutka qilganlar Ban bo‘ladi.\n"
-        "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
-        "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
+        "❌ Nakrutka qilganlar ban qilinadi."
         )
+
     elif text == "🟢 Refeal link":
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
-        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
+        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo‘stlaringizga yuboring!")
+
+# ================= Admin komandalar =================
+@bot.message_handler(commands=['top'])
+def admin_top(message):
+    chat_id = message.chat.id
+    if chat_id not in ADMIN_IDS:
+        return
+    sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
+    text_out = "📊 Full Top 38:\n"
+    for idx, (uid, udata) in enumerate(sorted_users[:38], 1):
+        uname = f"@{udata['username']}" if udata['username'] else "No username"
+        text_out += f"{idx}. {uid} ({uname}) - {udata['ball']} ball\n"
+    bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+
+@bot.message_handler(commands=['pay'])
+def pay_command(message):
+    chat_id = message.chat.id
+    if chat_id != OWNER_ID:
+        return
+    try:
+        _, uid, amount = message.text.split()
+        uid = int(uid)
+        amount = int(amount)
+        if uid in users:
+            users[uid]["ball"] += amount
+            bot.send_message(chat_id, f"✅ {uid} foydalanuvchiga {amount} ball qo‘shildi.")
+            bot.send_message(uid, f"🎉 Sizga +{amount} ball qo‘shildi!")
+        else:
+            bot.send_message(chat_id, "❌ Foydalanuvchi topilmadi.")
+    except:
+        bot.send_message(chat_id, "❌ Foydalanish: /pay <id> <miqdor>")
 
 # ================= Botni ishga tushurish =================
 bot.infinity_polling()

@@ -30,17 +30,34 @@ PAY_ADMIN = 7717343429  # faqat shu odam /pay ishlatadi
 # ================= Xotirada saqlash =================
 users = {}  # {user_id: {"phone": str, "ball": int, "registered": bool}}
 
-# ================= START handler =================
+# ================= START handler (referal bilan) =================
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     chat_id = message.chat.id
+    args = message.text.split()
+
+    # Referral orqali kirgan bo‘lsa
+    if len(args) > 1:
+        referrer_id = int(args[1])
+        if referrer_id != chat_id:  # o‘zi-o‘ziga ball bermaydi
+            if chat_id not in users:  # faqat yangi foydalanuvchi bo‘lsa
+                users[chat_id] = {"phone": None, "ball": 0, "registered": False}
+                if referrer_id not in users:
+                    users[referrer_id] = {"phone": None, "ball": 0, "registered": False}
+                users[referrer_id]["ball"] += 10
+                bot.send_message(referrer_id, f"🎉 Sizga yangi do‘st qo‘shildi!\n+10 ball qo‘shildi.\nJami: {users[referrer_id]['ball']}")
+
+    # Agar user ro‘yxatda bo‘lmasa, yaratib qo‘yamiz
+    if chat_id not in users:
+        users[chat_id] = {"phone": None, "ball": 0, "registered": False}
+
     markup = types.InlineKeyboardMarkup(row_width=1)
 
     # Majburiy kanallar
     for ch in MAJBURIY_CHANNELS:
         markup.add(types.InlineKeyboardButton(ch["name"], url=f"https://t.me/{ch['id'].replace('@','')}"))
 
-    # Ixtiyoriy kanallar (tekshirilmaydi)
+    # Ixtiyoriy kanallar
     for ch in OPTIONAL_CHANNELS:
         markup.add(types.InlineKeyboardButton(ch["name"], url=ch["url"]))
 
@@ -86,6 +103,9 @@ def contact_handler(message):
     phone = message.contact.phone_number
     if chat_id not in users:
         users[chat_id] = {"phone": phone, "ball": 0, "registered": True}
+    else:
+        users[chat_id]["phone"] = phone
+        users[chat_id]["registered"] = True
     bot.send_message(chat_id, "🎉 Tabriklaymiz! Siz Konkursda to'liq ro'yxatdan o'tdingiz!")
     main_menu(chat_id)
 

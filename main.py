@@ -10,6 +10,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# ================= Adminlar =================
 ADMINS = [7717343429, 1900651840]
 PAY_ADMIN = 7717343429  # faqat shu odam /pay ishlatadi
 
@@ -148,21 +149,47 @@ def main_menu(chat_id):
     )
     bot.send_message(chat_id, "Asosiy menyu:", reply_markup=markup)
 
-# ================= Reyting =================
-@bot.message_handler(func=lambda message: message.text == "📊 Reyting")
-def rating_handler(message):
+# ================= Tugmalar handleri =================
+@bot.message_handler(func=lambda message: True)
+def text_handler(message):
     chat_id = message.chat.id
-    cur.execute("SELECT * FROM users ORDER BY ball DESC")
-    users_list = cur.fetchall()
-    if chat_id in ADMINS:
-        text_out = "📊 To‘liq Reyting (Adminlar uchun):\n"
-        for idx, u in enumerate(users_list, 1):
-            text_out += f"{idx}. {u['chat_id']} - {u['ball']} ball\n"
-    else:
-        text_out = "📊 Top 10 Reyting:\n"
-        for idx, u in enumerate(users_list[:10], 1):
-            text_out += f"{idx}. {u['chat_id']} - {u['ball']} ball\n"
-    bot.send_message(chat_id, text_out if users_list else "Hozircha reyting mavjud emas.")
+    text = message.text
+    user = get_user(chat_id)
 
-# ================= Botni ishga tushurish =================
-bot.infinity_polling()
+    if text == "🔴 Konkursda qatnashish":
+        bot.send_message(chat_id, "Ixtiyor konkurs bot start berdi...")
+
+    elif text == "🎁 Sovgalar":
+        caption_text = "Sovgalar ro‘yxati..."
+        bot.send_photo(chat_id, photo_file_id, caption=caption_text)
+
+    elif text == "👤 Ballarim":
+        ball = user['ball'] if user else 0
+        bot.send_message(chat_id, f"👤 Sizning ballaringiz: {ball}")
+
+    elif text == "📊 Reyting":
+        cur.execute("SELECT * FROM users ORDER BY ball DESC")
+        users_list = cur.fetchall()
+        if chat_id in ADMINS:
+            text_out = "📊 To‘liq Reyting (Adminlar uchun):\n"
+            for idx, u in enumerate(users_list, 1):
+                text_out += f"{idx}. {u['chat_id']} - {u['ball']} ball\n"
+        else:
+            text_out = "📊 Top 10 Reyting:\n"
+            for idx, u in enumerate(users_list[:10], 1):
+                text_out += f"{idx}. {u['chat_id']} - {u['ball']} ball\n"
+        bot.send_message(chat_id, text_out if users_list else "Hozircha reyting mavjud emas.")
+
+    elif text == "💡 Shartlar":
+        bot.send_message(chat_id, "Tanlov shartlari ...")
+
+    elif text == "🟢 Refeal link":
+        link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
+        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}")
+
+# ================= Maxfiy /pay komanda =================
+@bot.message_handler(commands=['pay'])
+def pay_handler(message):
+    chat_id = message.chat.id
+    if chat_id != PAY_ADMIN:
+        return

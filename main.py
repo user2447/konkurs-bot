@@ -173,7 +173,6 @@ def text_handler(message):
     sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
 
     if chat_id in ADMINS:
-        # Adminlarga barcha foydalanuvchilarni chiqaramiz
         text_out = "📊 To‘liq Reyting (Adminlar uchun):\n"
         for idx, (uid, udata) in enumerate(sorted_users, 1):
             try:
@@ -182,12 +181,10 @@ def text_handler(message):
                 username = "❌ username yo'q"
             text_out += f"{idx}. {uid} {username} - {udata['ball']} ball\n"
 
-        # Xabar juda uzun bo‘lsa, 4000 belgi bo‘yicha bo‘lib yuborish
+        # 4000 belgidan bo‘lib yuborish
         for chunk in [text_out[i:i+4000] for i in range(0, len(text_out), 4000)]:
             bot.send_message(chat_id, chunk)
-
     else:
-        # Oddiy foydalanuvchilar uchun Top 10
         text_out = "📊 Top 10 Reyting:\n"
         for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
             try:

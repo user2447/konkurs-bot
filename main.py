@@ -255,6 +255,10 @@ def text_handler(message):
         "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
         "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
         )
+    #loglarni korish
+    @bot.message_handler(commands=['start'])
+    def start_handler(message):
+    print(f"[START] Message from: {message.chat.id}")  # log uchun
 
     elif text == "🟢 Refeal link":
         link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"

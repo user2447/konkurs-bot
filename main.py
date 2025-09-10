@@ -36,7 +36,7 @@ def start_handler(message):
         types.InlineKeyboardButton("Kanal 2", url="https://t.me/ixtiyor_gaming"),
     )
     # Ixtiyoriy kanal
-    markup.add(types.InlineKeyboardButton("Kanal 3 (ixtiyoriy)", url="https://t.me/+J60RmZvVVPUyNmJi"))
+    markup.add(types.InlineKeyboardButton("Kanal 3", url="https://t.me/+J60RmZvVVPUyNmJi"))
 
     # Instagram va YouTube
     markup.add(
@@ -46,22 +46,38 @@ def start_handler(message):
     markup.add(types.InlineKeyboardButton("Obuna bo'ldim ✅", callback_data="sub_done"))
 
     bot.send_message(
-        chat_id,
-        "🚀 Konkursda ishtirok etish uchun quyidagi majburiy kanallarga obuna bo‘ling va “Obuna bo'ldim ✅” tugmasini bosing.\n\n"
-        "👉 3-kanalga obuna bo‘lish shart emas.",
-        reply_markup=markup
+    chat_id,
+    "🚀 Konkursda ishtirok etish uchun quyidagi majburiy kanallarga obuna bo‘ling va 'Obuna bo'ldim ✅' tugmasini bosing.\n\n",
+    reply_markup=markup
     )
 
+# ================= CALLBACK handler =================
 # ================= CALLBACK handler =================
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.from_user.id
     if call.data == "sub_done":
+        # Majburiy kanallarni tekshiramiz
+        not_subscribed = []
+        for ch in CHANNELS:  # faqat Kanal 1 va Kanal 2
+            try:
+                member = bot.get_chat_member(ch["id"], chat_id)
+                if member.status not in ["member", "administrator", "creator"]:
+                    not_subscribed.append(ch["name"])
+            except:
+                not_subscribed.append(ch["name"])
+
+        if not_subscribed:
+            bot.answer_callback_query(call.id, "❌ Siz barcha majburiy kanallarga obuna bo‘lmadingiz!")
+            bot.send_message(chat_id, "⛔️ Quyidagi kanallarga obuna bo‘ling:\n" + "\n".join(not_subscribed))
+            return
+
         if users.get(chat_id, {}).get("registered"):
             bot.answer_callback_query(call.id, "✅ Siz allaqachon ro'yxatdan o'tgansiz!")
             main_menu(chat_id)
             return
 
+        # Obuna bo'lganidan keyin raqamni so‘raymiz
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)

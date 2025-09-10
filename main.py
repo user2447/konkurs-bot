@@ -173,21 +173,22 @@ def text_handler(message):
         bot.send_message(chat_id, f"👤 Sizning ballaringiz: {ball}")
 
     elif text == "📊 Reyting":
-        sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
+    sorted_users = sorted(users.items(), key=lambda x: x[1]["ball"], reverse=True)
 
-        if chat_id in ADMINS:
-            # Adminlarga Top 38
-            text_out = "📊 Top 38 Reyting (Adminlar uchun):\n"
-            for idx, (uid, udata) in enumerate(sorted_users[:38], 1):
-                username = f"@{bot.get_chat(uid).username}" if bot.get_chat(uid).username else "❌ username yo'q"
-                text_out += f"{idx}. {uid} {username} - {udata['ball']} ball\n"
-            bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
-        else:
-            # Oddiy userlarga Top 10
-            text_out = "📊 Top 10 Reyting:\n"
-            for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
-                text_out += f"{idx}. {uid} - {udata['ball']} ball\n"
-            bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+    if chat_id in ADMINS:
+        # Adminlarga Top 40
+        text_out = "📊 Top 40 Reyting (Adminlar uchun):\n"
+        for idx, (uid, udata) in enumerate(sorted_users[:40], 1):
+            username = f"@{bot.get_chat(uid).username}" if bot.get_chat(uid).username else "❌ username yo'q"
+            text_out += f"{idx}. {uid} {username} - {udata['ball']} ball\n"
+        bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+    else:
+        # Oddiy userlarga Top 10
+        text_out = "📊 Top 10 Reyting:\n"
+        for idx, (uid, udata) in enumerate(sorted_users[:10], 1):
+            text_out += f"{idx}. {uid} - {udata['ball']} ball\n"
+        bot.send_message(chat_id, text_out if sorted_users else "Hozircha reyting mavjud emas.")
+
 
     elif text == "💡 Shartlar":
         bot.send_message(chat_id,

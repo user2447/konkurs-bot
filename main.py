@@ -71,7 +71,9 @@ def callback_query(call):
                 member = bot.get_chat_member(ch["id"], chat_id)
                 if member.status not in ["member", "administrator", "creator"]:
                     not_subscribed.append(ch["name"])
-            except:
+            except Exception as e:
+                # Shu yerga log qo‘shdik
+                bot.send_message(chat_id, f"⚠️ Bot '{ch['name']}' kanalida admin emas yoki kira olmayapti!\nXato: {e}")
                 not_subscribed.append(ch["name"])
 
         if not_subscribed:
@@ -87,6 +89,7 @@ def callback_query(call):
         else:
             bot.send_message(chat_id, "✅ Siz allaqachon ro‘yxatdan o‘tib bo‘lgansiz.")
         bot.answer_callback_query(call.id)
+
 
 # ================= Kontakt qabul qilish =================
 @bot.message_handler(content_types=['contact'])

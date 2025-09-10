@@ -64,6 +64,17 @@ def get_referrer(user_id):
     result = cursor.fetchone()
     return result[0] if result else None
 
+def check_subscription(user_id):
+    not_subscribed = []
+    for ch in CHANNELS:
+        try:
+            status = bot.get_chat_member(ch["id"], user_id).status
+            if status in ["left", "kicked"]:
+                not_subscribed.append(ch["name"])
+        except:
+            not_subscribed.append(ch["name"])
+    return not_subscribed
+
 # ================= START handler =================
 @bot.message_handler(commands=['start'])
 def start_handler(message):
@@ -93,6 +104,15 @@ def callback_query(call):
             bot.answer_callback_query(call.id, "✅ Siz allaqachon ro'yxatdan o'tgansiz!")
             main_menu(chat_id)
             return
+
+        not_subscribed = check_subscription(chat_id)
+        if not_subscribed:
+            bot.answer_callback_query(call.id,
+                f"❌ Siz quyidagi kanallarga obuna bo‘lmadingiz: {', '.join(not_subscribed)}",
+                show_alert=True
+            )
+            return
+
         markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         contact_button = types.KeyboardButton("📲 Raqamni yuborish", request_contact=True)
         markup.add(contact_button)
@@ -179,13 +199,4 @@ def text_handler(message):
         "BOT sizga maxsus referral link beradi.\n"
         "O'sha link orqali kirgan har bir do'stingiz uchun 10 balldan qo'shiladi.\n\n"
         "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlanadi.\n"
-        "❗️ Diqqat! Nakrutka qilganlar Ban bo‘ladi.\n"
-        "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
-        "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
-        )
-    elif text == "🟢 Refeal link":
-        link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
-        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}")
-
-# ================= Bot ishga tushurish =================
-bot.infinity_polling()
+        "

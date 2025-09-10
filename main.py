@@ -198,4 +198,15 @@ def text_handler(message):
         "Ballar qanday to'planadi?\n"
         "BOT sizga maxsus referral link beradi.\n"
         "O'sha link orqali kirgan har bir do'stingiz uchun 10 balldan qo'shiladi.\n\n"
-        "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlan
+        "⏳ Tanlov 9 ~ Oktabr kuni 20:00 da yakunlanadi.\n"
+        "❗️ Diqqat! Nakrutka qilganlar Ban bo‘ladi.\n"
+        "🙂 Faol bo'ling, mukofotlarni qo'lga kiriting.\n"
+        "‼️‼️ Tanlov g'oliblari hamma majburiy kanallarga a'zo bo'lishi shart❌"
+        )
+
+    elif text == "🟢 Refeal link":
+        link = f"https://t.me/ixtiyor_rp_bot?start={chat_id}"
+        bot.send_message(chat_id, f"🔗 Sizning referral linkingiz:\n{link}\n\nDo'stlaringizga yuboring!")
+
+# ================= Botni ishga tushurish =================
+bot.infinity_polling()

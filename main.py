@@ -1,9 +1,11 @@
 import os
 from dotenv import load_dotenv
+import telebot
+from telebot import types
+
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
-
 
 # ===============================================
 # POSTGRESQL bilan ulanish – HOZIRCHA COMMENT

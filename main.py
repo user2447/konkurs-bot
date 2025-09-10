@@ -193,3 +193,17 @@ def pay_handler(message):
     chat_id = message.chat.id
     if chat_id != PAY_ADMIN:
         return
+    try:
+        parts = message.text.split()
+        if len(parts) != 3:
+            bot.send_message(chat_id, "❌ Format: /pay <user_id> <miqdor>")
+            return
+        uid = int(parts[1])
+        amount = int(parts[2])
+        add_or_update_user(uid, ball_increment=amount)
+        bot.send_message(chat_id, f"✅ {uid} foydalanuvchiga {amount} ball qo‘shildi.")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Xatolik: {e}")
+
+# ================= Botni ishga tushurish =================
+bot.infinity_polling()
